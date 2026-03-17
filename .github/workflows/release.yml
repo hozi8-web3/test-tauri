@@ -23,7 +23,7 @@ jobs:
       - name: Install Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -38,7 +38,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: run-action  # If you prefer to use the existing pushed tag, remove this and use 'v*' or similar
+          tagName: ${{ github.ref_name }}
           releaseName: "Al-Barkat Mart POS ${{ github.ref_name }}"
           releaseBody: "Automated Release ${{ github.ref_name }} compiled by Tauri."
           releaseDraft: false
