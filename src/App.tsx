@@ -4,7 +4,7 @@ import { useStore } from './store'
 import logo from './assets/general-logo.jpeg'
 import {
   Lock, ShoppingCart, Package, BarChart2,
-  Layers, Banknote, Settings, ChevronRight, Activity, FileText
+  Layers, Banknote, Settings, Activity, FileText, LogOut
 } from 'lucide-react'
 
 import { SetupWizard } from './components/SetupWizard'
@@ -18,7 +18,7 @@ import { CashDrawer } from './components/CashDrawer'
 import { SettingsPage } from './components/Settings'
 import { PinGate } from './components/PinGate'
 
-const NAV_ITEMS = [
+const NAV = [
   { icon: ShoppingCart, label: 'Point of Sale', shortcut: 'F2', path: '/pos' },
   { icon: Package, label: 'Products', path: '/products', locked: true },
   { icon: Layers, label: 'Inventory', path: '/inventory', locked: true },
@@ -29,106 +29,128 @@ const NAV_ITEMS = [
 ]
 
 const SidebarItem = ({ icon: Icon, label, shortcut, path, active, locked }: {
-  icon: React.ComponentType<{ size?: number; className?: string }>; label: string; shortcut?: string; path: string; active: boolean; locked?: boolean
+  icon: React.ComponentType<{ size?: number; className?: string }>
+  label: string; shortcut?: string; path: string; active: boolean; locked?: boolean
 }) => (
-  <a
-    href={`#${path}`}
-    className={`group flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-150 relative
-      ${active
-        ? 'bg-slate-800 text-white'
-        : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100'
-      }`}
+  <a href={`#${path}`}
+    className="group relative flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-medium transition-all duration-150 cursor-pointer"
+    style={active
+      ? { background: 'rgba(16,185,129,0.12)', color: 'white', border: '1px solid rgba(16,185,129,0.2)' }
+      : { color: 'rgba(148,163,184,0.8)', border: '1px solid transparent' }}
+    onMouseEnter={e => { if (!active) e.currentTarget.style.background = 'rgba(255,255,255,0.05)' }}
+    onMouseLeave={e => { if (!active) e.currentTarget.style.background = 'transparent' }}
   >
-    {active && <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-green-400 rounded-r-full" />}
-    <Icon size={15} className={active ? 'text-green-400' : 'text-slate-500 group-hover:text-slate-300'} />
-    <span className="flex-1">{label}</span>
-    {locked && <Lock size={9} className="text-slate-600 flex-shrink-0" />}
+    {active && <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-r-full" style={{ background: '#10b981' }} />}
+    <Icon size={15} className={active ? 'text-emerald-400' : 'text-slate-500 group-hover:text-slate-400'} />
+    <span className="flex-1 truncate">{label}</span>
+    {locked && <Lock size={9} style={{ color: 'rgba(71,85,105,0.7)', flexShrink: 0 }} />}
     {shortcut && (
-      <span className="text-[10px] text-slate-600 bg-slate-800 px-1 py-0.5 rounded font-mono">{shortcut}</span>
+      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-md"
+        style={{ background: 'rgba(255,255,255,0.05)', color: 'rgba(100,116,139,0.8)', border: '1px solid rgba(255,255,255,0.06)' }}>
+        {shortcut}
+      </span>
     )}
-    {active && <ChevronRight size={12} className="text-slate-600" />}
   </a>
 )
 
 const Layout = ({ children }: { children: ReactNode }) => {
-  const { setAuth } = useStore()
+  const { setAuth, currentUser } = useStore()
   const location = useLocation()
-  const [time, setTime] = useState(() =>
-    new Date().toLocaleTimeString('en-PK', { hour: '2-digit', minute: '2-digit' })
-  )
+  const [time, setTime] = useState(() => new Date().toLocaleTimeString('en-PK', { hour: '2-digit', minute: '2-digit' }))
   const dateStr = new Date().toLocaleDateString('en-PK', { weekday: 'short', day: 'numeric', month: 'short' })
 
   useEffect(() => {
-    const t = setInterval(() => {
-      setTime(new Date().toLocaleTimeString('en-PK', { hour: '2-digit', minute: '2-digit' }))
-    }, 30000)
+    const t = setInterval(() => setTime(new Date().toLocaleTimeString('en-PK', { hour: '2-digit', minute: '2-digit' })), 30000)
     return () => clearInterval(t)
   }, [])
 
-  const currentPage = NAV_ITEMS.find(n => n.path === location.pathname)?.label ?? 'Dashboard'
+  const currentPage = NAV.find(n => n.path === location.pathname)?.label ?? 'Dashboard'
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-slate-100">
+    <div className="flex h-screen w-full overflow-hidden" style={{ background: '#f0f4f8' }}>
       {/* Sidebar */}
-      <aside className="w-52 flex-shrink-0 flex flex-col bg-slate-900">
+      <aside className="w-52 flex-shrink-0 flex flex-col relative overflow-hidden"
+        style={{ background: 'linear-gradient(180deg, #0d1425 0%, #0f172a 100%)', borderRight: '1px solid rgba(255,255,255,0.05)' }}>
+
+        {/* Subtle background glow */}
+        <div className="absolute top-0 left-0 w-full h-48 pointer-events-none"
+          style={{ background: 'radial-gradient(ellipse at 50% 0%, rgba(16,185,129,0.06) 0%, transparent 70%)' }} />
+
         {/* Logo */}
-        <div className="flex flex-col items-center gap-1.5 px-4 py-4 border-b border-slate-800">
-          <img src={logo} alt="Al-Barkat" className="w-16 h-16 object-contain mix-blend-screen opacity-95 drop-shadow-lg" />
+        <div className="relative z-10 flex flex-col items-center gap-2 px-4 py-5"
+          style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+          <div className="relative">
+            <div className="absolute inset-0 rounded-2xl blur-lg opacity-25" style={{ background: '#10b981' }} />
+            <img src={logo} alt="Al-Barkat" className="relative w-12 h-12 rounded-2xl object-contain"
+              style={{ border: '1px solid rgba(255,255,255,0.1)' }} />
+          </div>
           <div className="text-center">
             <div className="text-sm font-bold text-white leading-tight">Al-Barkat Mart</div>
             <div className="flex items-center justify-center gap-1.5 mt-0.5">
-              <div className="text-[10px] text-slate-500 leading-tight">POS v1.0</div>
-              <Activity size={9} className="text-green-400 animate-pulse" />
+              <Activity size={8} className="text-emerald-400 animate-pulse" />
+              <span className="text-[10px] text-slate-500">POS Enterprise</span>
             </div>
           </div>
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 px-2 py-3 space-y-0.5 overflow-y-auto">
-          <p className="px-2 mb-2 text-[10px] font-semibold uppercase tracking-widest text-slate-600">Menu</p>
-          {NAV_ITEMS.map(item => (
-            <SidebarItem
-              key={item.path}
-              icon={item.icon}
-              label={item.label}
-              shortcut={item.shortcut}
-              path={item.path}
-              locked={item.locked}
-              active={location.pathname === item.path || (location.pathname === '/' && item.path === '/pos')}
-            />
+        <nav className="relative z-10 flex-1 px-2.5 py-3 space-y-0.5 overflow-y-auto">
+          <p className="px-2 mb-2.5 text-[9px] font-bold uppercase tracking-[0.15em]" style={{ color: 'rgba(71,85,105,0.8)' }}>Navigation</p>
+          {NAV.map(item => (
+            <SidebarItem key={item.path} {...item}
+              active={location.pathname === item.path || (location.pathname === '/' && item.path === '/pos')} />
           ))}
         </nav>
 
         {/* Footer */}
-        <div className="px-2 pb-3 pt-2 border-t border-slate-800 space-y-1">
-          <div className="flex items-center gap-2 px-3 py-1">
-            <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-            <span className="text-[10px] text-slate-500 font-mono">{time} · {dateStr}</span>
+        <div className="relative z-10 px-2.5 pb-3 pt-2" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+          {/* User info */}
+          {currentUser && (
+            <div className="flex items-center gap-2 px-3 py-2 mb-1 rounded-xl"
+              style={{ background: 'rgba(255,255,255,0.03)' }}>
+              <div className="w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0"
+                style={{ background: 'linear-gradient(135deg, #10b981, #059669)' }}>
+                {currentUser.username[0]}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-xs text-white font-medium truncate">{currentUser.username}</div>
+                <div className="text-[10px]" style={{ color: 'rgba(100,116,139,0.8)' }}>{currentUser.role}</div>
+              </div>
+            </div>
+          )}
+          <div className="flex items-center gap-2 px-3 py-1 mb-1">
+            <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse flex-shrink-0" />
+            <span className="text-[10px] font-mono" style={{ color: 'rgba(71,85,105,0.8)' }}>{time} · {dateStr}</span>
           </div>
-          <button
-            onClick={() => setAuth(false)}
-            className="w-full flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs text-slate-500 hover:text-slate-200 hover:bg-slate-800 transition-colors"
-          >
-            <Lock size={13} />
+          <button onClick={() => setAuth(false)}
+            className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs transition-all"
+            style={{ color: 'rgba(100,116,139,0.7)', border: '1px solid transparent' }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.08)'; e.currentTarget.style.color = '#f87171'; e.currentTarget.style.borderColor = 'rgba(239,68,68,0.15)' }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(100,116,139,0.7)'; e.currentTarget.style.borderColor = 'transparent' }}>
+            <LogOut size={12} />
             <span>Lock Screen</span>
-            <span className="ml-auto text-[10px] font-mono bg-slate-800 px-1 py-0.5 rounded text-slate-600">F12</span>
+            <span className="ml-auto text-[10px] font-mono px-1.5 py-0.5 rounded" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)', color: 'rgba(71,85,105,0.7)' }}>F12</span>
           </button>
         </div>
       </aside>
 
-      {/* Main */}
+      {/* Main content area */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Top Bar */}
-        <header className="h-9 bg-white border-b border-slate-200 flex items-center px-4 gap-2 shrink-0 shadow-sm">
+        <header className="h-10 bg-white flex items-center px-5 gap-3 flex-shrink-0"
+          style={{ borderBottom: '1px solid #e8eef4', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
           <span className="text-slate-300 text-xs">/</span>
           <span className="text-xs font-semibold text-slate-700">{currentPage}</span>
           <div className="ml-auto flex items-center gap-3">
-            <span className="text-[10px] text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md font-mono">PKR · Al-Barkat Mart</span>
-            <div className="w-1.5 h-1.5 rounded-full bg-green-400" title="Online" />
+            <span className="text-[10px] font-medium px-2.5 py-1 rounded-lg"
+              style={{ background: '#f0f9f5', color: '#059669', border: '1px solid #d1fae5' }}>
+              PKR · {currentUser?.username ?? 'Al-Barkat'}
+            </span>
+            <div className="w-2 h-2 rounded-full bg-emerald-400" title="Online" />
           </div>
         </header>
 
-        {/* Content — pages are responsible for their own scroll */}
+        {/* Content */}
         <main className="flex-1 overflow-hidden relative">
           {children}
         </main>
@@ -137,7 +159,6 @@ const Layout = ({ children }: { children: ReactNode }) => {
   )
 }
 
-// Wrapper so each route gets Layout with its own component
 const Page = ({ component: Comp }: { component: () => React.ReactElement }) => (
   <Layout><Comp /></Layout>
 )
@@ -154,11 +175,9 @@ function AppRoutes() {
           const count = res.row.count as number
           setNeedsSetup(count === 0)
         } else {
-          // DB error or no row — treat as needs setup
           setNeedsSetup(true)
         }
       } catch {
-        // Any error — show setup wizard
         setNeedsSetup(true)
       }
     }
@@ -176,26 +195,21 @@ function AppRoutes() {
 
   if (needsSetup === null) {
     return (
-      <div className="flex h-screen items-center justify-center bg-slate-900">
-        <div className="flex items-center gap-3 text-white">
-          <div className="w-4 h-4 border-2 border-green-400 border-t-transparent rounded-full animate-spin" />
-          <span className="text-sm font-medium">Starting Al-Barkat POS…</span>
+      <div className="flex h-screen items-center justify-center"
+        style={{ background: 'linear-gradient(135deg, #0a0f1e, #0f172a)' }}>
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 rounded-2xl flex items-center justify-center"
+            style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.25)' }}>
+            <div className="w-6 h-6 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
+          </div>
+          <span className="text-slate-400 text-sm font-medium">Starting Al-Barkat POS…</span>
         </div>
       </div>
     )
   }
 
-  if (needsSetup) return (
-    <Routes>
-      <Route path="*" element={<SetupWizard />} />
-    </Routes>
-  )
-
-  if (isLocked) return (
-    <Routes>
-      <Route path="*" element={<Login />} />
-    </Routes>
-  )
+  if (needsSetup) return <Routes><Route path="*" element={<SetupWizard />} /></Routes>
+  if (isLocked) return <Routes><Route path="*" element={<Login />} /></Routes>
 
   return (
     <Routes>

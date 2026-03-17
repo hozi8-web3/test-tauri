@@ -7,12 +7,12 @@
 
 @layer base {
     :root {
-        --brand-green: #16a34a;
-        --brand-red: #dc2626;
+        --brand-green: #10b981;
+        --brand-emerald: #059669;
     }
 
     * {
-        border-color: #e2e8f0;
+        border-color: rgba(255,255,255,0.08);
         box-sizing: border-box;
     }
 
@@ -23,43 +23,35 @@
         font-size: 13px;
         line-height: 1.5;
         -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
     }
 
     /* Compact scrollbars */
-    ::-webkit-scrollbar {
-        width: 4px;
-        height: 4px;
-    }
-
-    ::-webkit-scrollbar-track {
-        background: transparent;
-    }
-
-    ::-webkit-scrollbar-thumb {
-        background: #cbd5e1;
-        border-radius: 99px;
-    }
-
-    ::-webkit-scrollbar-thumb:hover {
-        background: #94a3b8;
-    }
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(148,163,184,0.4); border-radius: 99px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(148,163,184,0.7); }
 }
+
+/* Smooth scale animation for keypad buttons */
+@keyframes pop {
+    0%   { transform: scale(1); }
+    50%  { transform: scale(0.9); }
+    100% { transform: scale(1); }
+}
+
+.key-press { animation: pop 0.1s ease; }
+
+/* Slide-in-from-bottom animation for batch action bar */
+@keyframes slide-in {
+    from { opacity: 0; transform: translateX(-50%) translateY(12px); }
+    to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+.animate-in.slide-in-from-bottom-5 { animation: slide-in 0.2s ease forwards; }
 
 /* Print Styles */
 @media print {
-    body * {
-        visibility: hidden;
-    }
-
-    #printable-receipt,
-    #printable-receipt * {
-        visibility: visible;
-    }
-
-    #printable-receipt {
-        position: absolute;
-        left: 0;
-        top: 0;
-        width: 100%;
-    }
+    body * { visibility: hidden; }
+    #printable-receipt, #printable-receipt * { visibility: visible; }
+    #printable-receipt { position: absolute; left: 0; top: 0; width: 100%; }
 }
