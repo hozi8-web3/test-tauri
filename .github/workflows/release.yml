@@ -1,0 +1,46 @@
+name: Publish Tauri Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  publish-tauri:
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [windows-latest]
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Install frontend dependencies
+        run: npm install
+
+      - name: Build Tauri app
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: run-action  # If you prefer to use the existing pushed tag, remove this and use 'v*' or similar
+          releaseName: "Al-Barkat Mart POS ${{ github.ref_name }}"
+          releaseBody: "Automated Release ${{ github.ref_name }} compiled by Tauri."
+          releaseDraft: false
+          prerelease: false
+          args: "--target x86_64-pc-windows-msvc"
