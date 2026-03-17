@@ -1,4 +1,4 @@
-import { useEffect, useState, ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { HashRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useStore } from './store'
 import logo from './assets/general-logo.jpeg'
@@ -29,7 +29,7 @@ const NAV_ITEMS = [
 ]
 
 const SidebarItem = ({ icon: Icon, label, shortcut, path, active, locked }: {
-  icon: any; label: string; shortcut?: string; path: string; active: boolean; locked?: boolean
+  icon: React.ComponentType<{ size?: number; className?: string }>; label: string; shortcut?: string; path: string; active: boolean; locked?: boolean
 }) => (
   <a
     href={`#${path}`}
@@ -153,7 +153,8 @@ function AppRoutes() {
         setNeedsSetup(false) // skip setup check; show "not in Electron" UI below
         return
       }
-      const res = await window.api.db.get("SELECT COUNT(*) as count FROM owner")
+      // Check if there are any Admin users in the users table
+      const res = await window.api.db.get("SELECT COUNT(*) as count FROM users WHERE role = 'Admin'")
       setNeedsSetup(res.success && res.row.count === 0)
     }
     checkSetup()

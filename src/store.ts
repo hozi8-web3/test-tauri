@@ -10,15 +10,22 @@ export interface CartItem {
     total: number
 }
 
+export interface User {
+    id: number
+    username: string
+    role: string
+}
+
 interface AppState {
     isLocked: boolean
     isAuthenticated: boolean
+    currentUser: User | null
     cart: CartItem[]
     taxRate: number
     discount: number
     setLock: (locked: boolean) => void
-    setAuth: (auth: boolean) => void
-    addToCart: (product: any, quantity?: number) => void
+    setAuth: (auth: boolean, user?: User | null) => void
+    addToCart: (product: Record<string, unknown>, quantity?: number) => void
     removeFromCart: (cartItemId: number) => void
     updateCartQuantity: (cartItemId: number, quantity: number) => void
     clearCart: () => void
@@ -29,20 +36,23 @@ interface AppState {
 export const useStore = create<AppState>((set) => ({
     isLocked: true,
     isAuthenticated: false,
+    currentUser: null,
     cart: [],
     taxRate: 0,
     discount: 0,
 
     setLock: (locked) => set({ isLocked: locked }),
-    setAuth: (auth) => set({ isAuthenticated: auth, isLocked: !auth }),
+    setAuth: (auth, user = null) => set({ isAuthenticated: auth, isLocked: !auth, currentUser: auth ? user : null }),
 
     addToCart: (product, qty = 1) =>
         set((state) => {
-            const existing = state.cart.find((item) => item.productId === product.id)
+            const pid = product.id as number
+            const price = product.selling_price as number
+            const existing = state.cart.find((item) => item.productId === pid)
             if (existing) {
                 return {
                     cart: state.cart.map((item) =>
-                        item.productId === product.id
+                        item.productId === pid
                             ? {
                                 ...item,
                                 quantity: item.quantity + qty,
@@ -56,12 +66,12 @@ export const useStore = create<AppState>((set) => ({
                 cart: [
                     {
                         id: Date.now(),
-                        productId: product.id,
-                        barcode: product.barcode,
-                        name: product.name,
-                        price: product.selling_price,
+                        productId: pid,
+                        barcode: product.barcode as string | null,
+                        name: product.name as string,
+                        price,
                         quantity: qty,
-                        total: product.selling_price * qty
+                        total: price * qty
                     },
                     ...state.cart
                 ]

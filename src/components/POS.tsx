@@ -39,9 +39,28 @@ const beep = (type: 'success' | 'error' | 'remove' = 'success') => {
 
 type Toast = { id: number; msg: string; type: 'ok' | 'err' }
 
+interface Product {
+    id: number
+    barcode: string | null
+    name: string
+    category_id: number | null
+    category_name?: string
+    selling_price: number
+    cost_price: number
+    stock: number
+    min_stock_alert: number
+    supplier_id?: number | null
+    [key: string]: unknown // needed so Product satisfies Record<string,unknown> for addToCart
+}
+
+interface Category {
+    id: number
+    name: string
+}
+
 export const POS = () => {
-    const [products, setProducts] = useState<any[]>([])
-    const [categories, setCategories] = useState<any[]>([])
+    const [products, setProducts] = useState<Product[]>([])
+    const [categories, setCategories] = useState<Category[]>([])
     const [search, setSearch] = useState('')
     const [selectedCat, setSelectedCat] = useState<number | null>(null)
     const [barcodeInput, setBarcodeInput] = useState('')
@@ -57,7 +76,7 @@ export const POS = () => {
     const searchRef = useRef<HTMLInputElement>(null)
     const scanBufferRef = useRef('')
     const lastKeyTimeRef = useRef(0)
-    const productsRef = useRef<any[]>([])
+    const productsRef = useRef<Product[]>([])
 
     const toast = useCallback((msg: string, type: 'ok' | 'err' = 'ok') => {
         const id = Date.now()
@@ -65,7 +84,38 @@ export const POS = () => {
         setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), 2500)
     }, [])
 
-    useEffect(() => { loadProducts(); loadCategories() }, [])
+    const loadProducts = useCallback(async () => {
+        const res = await window.api.db.all(
+            'SELECT p.*, c.name as category_name FROM products p LEFT JOIN categories c ON p.category_id = c.id ORDER BY p.name ASC'
+        )
+        if (res.success) {
+            const rows = (res.rows || []) as unknown as Product[]
+            setProducts(rows)
+            productsRef.current = rows
+        }
+    }, [])
+
+    const loadCategories = useCallback(async () => {
+        const res = await window.api.db.all('SELECT * FROM categories ORDER BY name ASC')
+        if (res.success) setCategories((res.rows || []) as unknown as Category[])
+    }, [])
+
+    const processBarcode = useCallback((codeTarget: string) => {
+        const code = codeTarget.trim()
+        if (!code) return
+        const product = productsRef.current.find(p => p.barcode === code)
+        if (product) {
+            const qty = isReturnMode ? -1 : 1
+            if (qty > 0 && (product.stock as number) <= 0) { beep('error'); toast(`${product.name} — Out of Stock!`, 'err'); return }
+            beep('success'); addToCart(product, qty)
+            setLastAdded(product.id as number); toast(`✓ ${product.name} ${isReturnMode ? '(Returned)' : ''}`, 'ok')
+            setTimeout(() => setLastAdded(null), 600)
+        } else {
+            beep('error'); toast(`Barcode "${code}" not found`, 'err')
+        }
+    }, [isReturnMode, toast, addToCart])
+
+    useEffect(() => { loadProducts(); loadCategories() }, [loadProducts, loadCategories])
 
     /* auto-focus barcode on keypress outside inputs & background scanner */
     useEffect(() => {
@@ -94,39 +144,8 @@ export const POS = () => {
         }
         window.addEventListener('keydown', handler)
         return () => window.removeEventListener('keydown', handler)
-    }, []) // empty dep array is intentional — refs keep values current without re-registering
-
-    const loadProducts = async () => {
-        const res = await window.api.db.all(
-            'SELECT p.*, c.name as category_name FROM products p LEFT JOIN categories c ON p.category_id = c.id ORDER BY p.name ASC'
-        )
-        if (res.success) {
-            setProducts(res.rows || [])
-            productsRef.current = res.rows || []
-        }
-    }
-
-    const loadCategories = async () => {
-        const res = await window.api.db.all('SELECT * FROM categories ORDER BY name ASC')
-        if (res.success) setCategories(res.rows || [])
-    }
-
-    const processBarcode = (codeTarget: string) => {
-        const code = codeTarget.trim()
-        if (!code) return
-
-        // Use productsRef to avoid closure issues in the global listener
-        const product = productsRef.current.find(p => p.barcode === code)
-        if (product) {
-            const qty = isReturnMode ? -1 : 1
-            if (qty > 0 && product.stock <= 0) { beep('error'); toast(`${product.name} — Out of Stock!`, 'err'); return }
-            beep('success'); addToCart(product, qty)
-            setLastAdded(product.id); toast(`✓ ${product.name} ${isReturnMode ? '(Returned)' : ''}`, 'ok')
-            setTimeout(() => setLastAdded(null), 600)
-        } else {
-            beep('error'); toast(`Barcode "${code}" not found`, 'err')
-        }
-    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []) // intentional — handler uses refs, no re-registration needed
 
     const handleBarcodeSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -135,7 +154,7 @@ export const POS = () => {
         barcodeRef.current?.focus()
     }
 
-    const handleAddProduct = (p: any) => {
+    const handleAddProduct = (p: Product) => {
         const qty = isReturnMode ? -1 : 1
         if (qty > 0 && p.stock <= 0) { beep('error'); toast(`${p.name} out of stock`, 'err'); return }
         beep('success'); addToCart(p, qty)
@@ -172,7 +191,7 @@ export const POS = () => {
         )
         if (!saleRes.success || !saleRes.info) { toast('Sale save failed', 'err'); return }
 
-        const saleId = saleRes.info.lastInsertRowid
+        const saleId = saleRes.info.lastInsertId
         for (const item of cart) {
             await window.api.db.run(
                 `INSERT INTO sale_items (sale_id,product_id,product_name,quantity,price,total) VALUES (?,?,?,?,?,?)`,
@@ -184,7 +203,8 @@ export const POS = () => {
         /* receipt */
         const settingsRes = await window.api.db.all('SELECT key,value FROM settings')
         const S: Record<string, string> = {}
-        if (settingsRes.success) settingsRes.rows?.forEach((r: any) => { S[r.key] = r.value })
+        type SR = { key: string; value: string }
+        if (settingsRes.success) (settingsRes.rows as unknown as SR[])?.forEach(r => { S[r.key] = r.value })
 
         let logoBase64 = ''
         try {

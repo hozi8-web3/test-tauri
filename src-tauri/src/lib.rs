@@ -81,6 +81,45 @@ pub fn run() {
         );
         ",
         kind: tauri_plugin_sql::MigrationKind::Up,
+    },
+    tauri_plugin_sql::Migration {
+        version: 2,
+        description: "add_enterprise_features",
+        sql: "
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT NOT NULL UNIQUE,
+            pin_hash TEXT NOT NULL,
+            role TEXT NOT NULL DEFAULT 'Cashier',
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+
+        INSERT INTO users (username, pin_hash, role) 
+        SELECT 'Admin', pin_hash, 'Admin' FROM owner WHERE id = 1;
+
+        CREATE TABLE IF NOT EXISTS customers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            phone TEXT,
+            email TEXT,
+            total_spent REAL DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS suppliers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            contact_person TEXT,
+            phone TEXT,
+            email TEXT,
+            address TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+
+        ALTER TABLE sales ADD COLUMN customer_id INTEGER REFERENCES customers(id) ON DELETE SET NULL;
+        ALTER TABLE products ADD COLUMN supplier_id INTEGER REFERENCES suppliers(id) ON DELETE SET NULL;
+        ",
+        kind: tauri_plugin_sql::MigrationKind::Up,
     }
   ];
 

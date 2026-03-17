@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { useStore } from '../store'
+import { useStore, type User } from '../store'
 import logo from '../assets/general-logo.jpeg'
 import { Shield, Delete } from 'lucide-react'
 
@@ -54,6 +54,7 @@ export const Login = () => {
         }
         window.addEventListener('keydown', handleKeyDown)
         return () => window.removeEventListener('keydown', handleKeyDown)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []) // runs once — uses refs for current state
 
     const handleSubmit = async (currentPin: string) => {
@@ -62,16 +63,22 @@ export const Login = () => {
         setLoading(true)
         setError('')
         try {
-            const ownerRes = await window.api.db.get("SELECT pin_hash FROM owner LIMIT 1")
-            if (!ownerRes.success || !ownerRes.row) {
-                setError('System error: no owner configured')
+            const userRes = await window.api.db.get("SELECT id, username, role, pin_hash FROM users ORDER BY id ASC LIMIT 1")
+            if (!userRes.success || !userRes.row) {
+                setError('System error: no user configured')
                 setLoading(false)
                 return
             }
-            const { match } = await window.api.auth.compare(currentPin, ownerRes.row.pin_hash)
-            if (match) {
+            const pinHash = userRes.row.pin_hash as string
+            const matchRes = await window.api.auth.compare(currentPin, pinHash)
+            if (matchRes.match) {
+                const loggedUser: User = {
+                    id: userRes.row.id as number,
+                    username: userRes.row.username as string,
+                    role: userRes.row.role as string,
+                }
                 setPin('')
-                setAuth(true)
+                setAuth(true, loggedUser)
             } else {
                 const na = attemptsRef.current + 1
                 setAttempts(na)

@@ -28,8 +28,8 @@ export const SetupWizard = () => {
             return
         }
 
-        // Save Owner
-        await window.api.db.run("INSERT INTO owner (pin_hash) VALUES (?)", [hashRes.hash])
+        // Save initial Admin user
+        await window.api.db.run("INSERT INTO users (username, pin_hash, role) VALUES ('Admin', ?, 'Admin')", [hashRes.hash])
 
         // Save Settings
         await window.api.db.run("INSERT INTO settings (key, value) VALUES ('store_name', ?)", [storeName])

@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-import { useStore } from '../store'
 import { Shield, Delete } from 'lucide-react'
 
 /**
@@ -11,15 +10,14 @@ export const PinGate = ({ children }: { children: React.ReactNode }) => {
     const [verified, setVerified] = useState(false)
     const [error, setError] = useState('')
     const [loading, setLoading] = useState(false)
-    const { } = useStore()
 
     const handleSubmit = async (currentPin = pin) => {
         if (currentPin.length < 4 || loading) return
         setLoading(true); setError('')
-        const ownerRes = await window.api.db.get('SELECT pin_hash FROM owner LIMIT 1')
-        if (!ownerRes.success || !ownerRes.row) { setError('System error'); setLoading(false); return }
-        const { match } = await window.api.auth.compare(currentPin, ownerRes.row.pin_hash)
-        if (match) { setVerified(true) }
+        const userRes = await window.api.db.get("SELECT pin_hash FROM users WHERE role = 'Admin' LIMIT 1")
+        if (!userRes.success || !userRes.row) { setError('System error'); setLoading(false); return }
+        const matchRes = await window.api.auth.compare(currentPin, userRes.row.pin_hash as string)
+        if (matchRes.match) { setVerified(true) }
         else { setError('Incorrect PIN'); setPin('') }
         setLoading(false)
     }
@@ -44,6 +42,7 @@ export const PinGate = ({ children }: { children: React.ReactNode }) => {
         }
         window.addEventListener('keydown', handler)
         return () => window.removeEventListener('keydown', handler)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [verified])
 
     const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'CLR', '0', 'OK']
