@@ -1,36 +1,41 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Banknote, TrendingDown, Plus, CheckCircle, XCircle } from 'lucide-react'
 
+type DrawerRow = { id: number; opened_at: string; starting_cash: number; closed_at: string | null; expected_cash: number | null; actual_cash: number | null; variance: number | null }
+type Expense = { id: number; description: string; amount: number; created_at: string }
+
 export const CashDrawer = () => {
-    const [drawerInfo, setDrawerInfo] = useState<any>(null)
+    const [drawerInfo, setDrawerInfo] = useState<DrawerRow | null>(null)
     const [startingCash, setStartingCash] = useState('')
     const [endingCash, setEndingCash] = useState('')
     const [actualCash, setActualCash] = useState('')
-    const [expenses, setExpenses] = useState<any[]>([])
+    const [expenses, setExpenses] = useState<Expense[]>([])
     const [newExpenseDesc, setNewExpenseDesc] = useState('')
     const [newExpenseAmt, setNewExpenseAmt] = useState('')
 
-    useEffect(() => { loadDrawer() }, [])
+    const loadExpenses = useCallback(async (since: string) => {
+        const res = await window.api.db.all("SELECT * FROM expenses WHERE created_at >= ? ORDER BY created_at DESC", [since])
+        if (res.success) setExpenses((res.rows || []) as unknown as Expense[])
+    }, [])
 
-    const loadDrawer = async () => {
+    const loadDrawer = useCallback(async () => {
         const res = await window.api.db.get("SELECT * FROM cash_drawer WHERE closed_at IS NULL ORDER BY opened_at DESC LIMIT 1")
         if (res.success && res.row) {
-            setDrawerInfo(res.row)
-            loadExpenses(res.row.opened_at)
-            const salesRes = await window.api.db.get(`SELECT SUM(total) as cash_sales FROM sales WHERE payment_method = 'Cash' AND created_at >= ?`, [res.row.opened_at])
-            const expRes = await window.api.db.get(`SELECT SUM(amount) as total_exp FROM expenses WHERE created_at >= ?`, [res.row.opened_at])
-            const salesAmount = salesRes.success && salesRes.row?.cash_sales ? salesRes.row.cash_sales : 0
-            const expAmount = expRes.success && expRes.row?.total_exp ? expRes.row.total_exp : 0
-            setEndingCash((res.row.starting_cash + salesAmount - expAmount).toFixed(2))
+            const row = res.row as unknown as DrawerRow
+            setDrawerInfo(row)
+            loadExpenses(row.opened_at)
+            const salesRes = await window.api.db.get(`SELECT SUM(total) as cash_sales FROM sales WHERE payment_method = 'Cash' AND created_at >= ?`, [row.opened_at])
+            const expRes = await window.api.db.get(`SELECT SUM(amount) as total_exp FROM expenses WHERE created_at >= ?`, [row.opened_at])
+            const salesAmount = salesRes.success && salesRes.row?.cash_sales ? (salesRes.row.cash_sales as number) : 0
+            const expAmount = expRes.success && expRes.row?.total_exp ? (expRes.row.total_exp as number) : 0
+            setEndingCash((row.starting_cash + salesAmount - expAmount).toFixed(2))
         } else {
             setDrawerInfo(null)
         }
-    }
+    }, [loadExpenses])
 
-    const loadExpenses = async (since: string) => {
-        const res = await window.api.db.all("SELECT * FROM expenses WHERE created_at >= ? ORDER BY created_at DESC", [since])
-        if (res.success) setExpenses(res.rows || [])
-    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    useEffect(() => { loadDrawer() }, [loadDrawer])
 
     const handleOpenDrawer = async () => {
         if (!startingCash) return
@@ -41,7 +46,7 @@ export const CashDrawer = () => {
     const handleCloseDrawer = async () => {
         if (!actualCash) return
         const actual = parseFloat(actualCash), expected = parseFloat(endingCash), variance = actual - expected
-        await window.api.db.run("UPDATE cash_drawer SET closed_at = CURRENT_TIMESTAMP, expected_cash = ?, actual_cash = ?, variance = ? WHERE id = ?", [expected, actual, variance, drawerInfo.id])
+        await window.api.db.run("UPDATE cash_drawer SET closed_at = CURRENT_TIMESTAMP, expected_cash = ?, actual_cash = ?, variance = ? WHERE id = ?", [expected, actual, variance, drawerInfo?.id ?? null])
         window.print(); setActualCash(''); loadDrawer()
     }
 

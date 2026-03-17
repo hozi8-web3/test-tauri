@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { Plus, Edit2, Trash2, Upload, Search, X, Save, Tag, Package, RefreshCw } from 'lucide-react'
 
 type Category = { id: number; name: string }
@@ -43,16 +43,17 @@ export const Products = () => {
     const [editingCat, setEditingCat] = useState<Category | null>(null)
     const [catName, setCatName] = useState('')
 
-    useEffect(() => { loadAll() }, [])
-
-    const loadAll = async () => {
+    const loadAll = useCallback(async () => {
         const [pRes, cRes] = await Promise.all([
             window.api.db.all(`SELECT p.*, c.name as category_name FROM products p LEFT JOIN categories c ON p.category_id = c.id ORDER BY p.name ASC`),
             window.api.db.all(`SELECT * FROM categories ORDER BY name ASC`)
         ])
-        if (pRes.success) setProducts(pRes.rows || [])
-        if (cRes.success) setCategories(cRes.rows || [])
-    }
+        if (pRes.success) setProducts((pRes.rows || []) as unknown as Product[])
+        if (cRes.success) setCategories((cRes.rows || []) as unknown as Category[])
+    }, [])
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    useEffect(() => { loadAll() }, [loadAll])
 
     /* ── Product CRUD ── */
     const openAddProduct = () => {
