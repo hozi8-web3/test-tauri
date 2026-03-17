@@ -148,14 +148,19 @@ function AppRoutes() {
 
   useEffect(() => {
     const checkSetup = async () => {
-      // window.api is injected by Electron's preload — it's undefined in a plain browser
-      if (!window.api) {
-        setNeedsSetup(false) // skip setup check; show "not in Electron" UI below
-        return
+      try {
+        const res = await window.api.db.get("SELECT COUNT(*) as count FROM users WHERE role = 'Admin'")
+        if (res.success && res.row) {
+          const count = res.row.count as number
+          setNeedsSetup(count === 0)
+        } else {
+          // DB error or no row — treat as needs setup
+          setNeedsSetup(true)
+        }
+      } catch {
+        // Any error — show setup wizard
+        setNeedsSetup(true)
       }
-      // Check if there are any Admin users in the users table
-      const res = await window.api.db.get("SELECT COUNT(*) as count FROM users WHERE role = 'Admin'")
-      setNeedsSetup(res.success && res.row.count === 0)
     }
     checkSetup()
   }, [])
@@ -175,22 +180,6 @@ function AppRoutes() {
         <div className="flex items-center gap-3 text-white">
           <div className="w-4 h-4 border-2 border-green-400 border-t-transparent rounded-full animate-spin" />
           <span className="text-sm font-medium">Starting Al-Barkat POS…</span>
-        </div>
-      </div>
-    )
-  }
-
-  // window.api is only available inside Electron — show a helpful message in browser
-  if (!window.api) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-slate-900">
-        <div className="bg-slate-800 border border-slate-700 rounded-2xl p-8 max-w-sm text-center shadow-2xl">
-          <div className="text-4xl mb-4">🖥️</div>
-          <h1 className="text-white font-bold text-base mb-2">Open in Electron</h1>
-          <p className="text-slate-400 text-xs leading-relaxed">
-            Al-Barkat POS requires the Electron app to access the database.<br /><br />
-            Run <code className="bg-slate-700 text-green-400 px-1.5 py-0.5 rounded text-xs">npm run dev</code> and open the <strong className="text-white">desktop app window</strong>, not this browser tab.
-          </p>
         </div>
       </div>
     )

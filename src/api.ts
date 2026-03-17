@@ -25,11 +25,25 @@ interface ReceiptBasicResult { success: boolean; error?: string }
 // ── DB ────────────────────────────────────────────────────────────
 
 let db: Database | null = null;
-export async function initDb() {
-    if (!db) {
-        db = await Database.load('sqlite:al_barkat_mart.db');
-    }
-    return db;
+let dbInitPromise: Promise<Database> | null = null;
+
+export async function initDb(): Promise<Database> {
+    if (db) return db;
+    if (dbInitPromise) return dbInitPromise;
+    dbInitPromise = (async () => {
+        // Retry once — Tauri plugin may need a moment to start up
+        for (let attempt = 0; attempt < 3; attempt++) {
+            try {
+                db = await Database.load('sqlite:al_barkat_mart.db');
+                return db;
+            } catch (e) {
+                if (attempt === 2) throw e;
+                await new Promise(r => setTimeout(r, 800 * (attempt + 1)));
+            }
+        }
+        throw new Error('DB init failed after retries');
+    })();
+    return dbInitPromise;
 }
 
 // ── API Object ────────────────────────────────────────────────────

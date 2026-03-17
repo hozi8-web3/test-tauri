@@ -94,9 +94,6 @@ pub fn run() {
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );
 
-        INSERT INTO users (username, pin_hash, role) 
-        SELECT 'Admin', pin_hash, 'Admin' FROM owner WHERE id = 1;
-
         CREATE TABLE IF NOT EXISTS customers (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
@@ -115,9 +112,50 @@ pub fn run() {
             address TEXT,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );
+        ",
+        kind: tauri_plugin_sql::MigrationKind::Up,
+    },
+    tauri_plugin_sql::Migration {
+        version: 3,
+        description: "alter_sales_products_safe",
+        sql: "
+        CREATE TABLE IF NOT EXISTS sales_new (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            invoice_number TEXT NOT NULL UNIQUE,
+            subtotal REAL NOT NULL,
+            discount REAL NOT NULL DEFAULT 0,
+            tax_amount REAL NOT NULL DEFAULT 0,
+            total REAL NOT NULL,
+            payment_method TEXT NOT NULL,
+            amount_paid REAL NOT NULL,
+            change_amount REAL NOT NULL,
+            customer_id INTEGER REFERENCES customers(id) ON DELETE SET NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+        INSERT OR IGNORE INTO sales_new SELECT id,invoice_number,subtotal,discount,tax_amount,total,payment_method,amount_paid,change_amount,NULL,created_at FROM sales;
+        DROP TABLE sales;
+        ALTER TABLE sales_new RENAME TO sales;
 
-        ALTER TABLE sales ADD COLUMN customer_id INTEGER REFERENCES customers(id) ON DELETE SET NULL;
-        ALTER TABLE products ADD COLUMN supplier_id INTEGER REFERENCES suppliers(id) ON DELETE SET NULL;
+        CREATE INDEX IF NOT EXISTS idx_sales_invoice ON sales(invoice_number);
+        CREATE INDEX IF NOT EXISTS idx_sales_datetime ON sales(created_at);
+
+        CREATE TABLE IF NOT EXISTS products_new (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            barcode TEXT UNIQUE,
+            name TEXT NOT NULL,
+            category_id INTEGER REFERENCES categories(id) ON DELETE SET NULL,
+            cost_price REAL NOT NULL DEFAULT 0,
+            selling_price REAL NOT NULL,
+            stock INTEGER NOT NULL DEFAULT 0,
+            min_stock_alert INTEGER NOT NULL DEFAULT 5,
+            supplier_id INTEGER REFERENCES suppliers(id) ON DELETE SET NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+        INSERT OR IGNORE INTO products_new SELECT id,barcode,name,category_id,cost_price,selling_price,stock,min_stock_alert,NULL,created_at FROM products;
+        DROP TABLE products;
+        ALTER TABLE products_new RENAME TO products;
+
+        CREATE INDEX IF NOT EXISTS idx_products_barcode ON products(barcode);
         ",
         kind: tauri_plugin_sql::MigrationKind::Up,
     }
